@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { DiffEditor, Editor, DiffOnMount } from '@monaco-editor/react';
+import { useState, useRef } from 'react';
+import { DiffEditor, Editor, DiffOnMount, OnMount } from '@monaco-editor/react';
 
 function App() {
   const [original, setOriginal] = useState('{\n  "name": "John",\n  "age": 30\n}');
@@ -7,18 +7,17 @@ function App() {
   const [showDiff, setShowDiff] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const originalEditorRef = useRef<any>(null);
+  const modifiedEditorRef = useRef<any>(null);
+
   const looseParse = (str: string) => {
     try {
       return JSON.parse(str);
     } catch (e) {
-      // Try to sanitize Python-like format (True, False, None)
       const sanitized = str
         .replace(/\bTrue\b/g, 'true')
         .replace(/\bFalse\b/g, 'false')
         .replace(/\bNone\b/g, 'null');
-
-      // Use Function constructor to safely evaluate as a JS object literal
-      // This handles single quotes and unquoted keys (if valid JS)
       return (new Function(`return (${sanitized})`))();
     }
   };
@@ -47,6 +46,26 @@ function App() {
     if (errors.length > 0) {
       setError(errors.join(' & '));
     }
+
+    // Reset scroll positions and cursor to the beginning
+    if (originalEditorRef.current) {
+      originalEditorRef.current.setScrollLeft(0);
+      originalEditorRef.current.setScrollTop(0);
+      originalEditorRef.current.setPosition({ lineNumber: 1, column: 1 });
+    }
+    if (modifiedEditorRef.current) {
+      modifiedEditorRef.current.setScrollLeft(0);
+      modifiedEditorRef.current.setScrollTop(0);
+      modifiedEditorRef.current.setPosition({ lineNumber: 1, column: 1 });
+    }
+  };
+
+  const handleOriginalMount: OnMount = (editor) => {
+    originalEditorRef.current = editor;
+  };
+
+  const handleModifiedMount: OnMount = (editor) => {
+    modifiedEditorRef.current = editor;
   };
 
   const handleDiffOnMount: DiffOnMount = (editor) => {
@@ -129,6 +148,7 @@ function App() {
                   defaultLanguage="json"
                   value={original}
                   theme="vs-dark"
+                  onMount={handleOriginalMount}
                   onChange={(value) => setOriginal(value || '')}
                   options={{
                     fontSize: 14,
@@ -150,6 +170,7 @@ function App() {
                   defaultLanguage="json"
                   value={modified}
                   theme="vs-dark"
+                  onMount={handleModifiedMount}
                   onChange={(value) => setModified(value || '')}
                   options={{
                     fontSize: 14,
