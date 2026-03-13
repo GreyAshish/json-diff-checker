@@ -7,6 +7,22 @@ function App() {
   const [showDiff, setShowDiff] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const looseParse = (str: string) => {
+    try {
+      return JSON.parse(str);
+    } catch (e) {
+      // Try to sanitize Python-like format (True, False, None)
+      const sanitized = str
+        .replace(/\bTrue\b/g, 'true')
+        .replace(/\bFalse\b/g, 'false')
+        .replace(/\bNone\b/g, 'null');
+
+      // Use Function constructor to safely evaluate as a JS object literal
+      // This handles single quotes and unquoted keys (if valid JS)
+      return (new Function(`return (${sanitized})`))();
+    }
+  };
+
   const beautify = () => {
     setError(null);
     let newOriginal = original;
@@ -14,13 +30,13 @@ function App() {
     let errors = [];
 
     try {
-      newOriginal = JSON.stringify(JSON.parse(original), null, 2);
+      newOriginal = JSON.stringify(looseParse(original), null, 2);
     } catch (e) {
       errors.push('Original JSON is invalid');
     }
 
     try {
-      newModified = JSON.stringify(JSON.parse(modified), null, 2);
+      newModified = JSON.stringify(looseParse(modified), null, 2);
     } catch (e) {
       errors.push('Modified JSON is invalid');
     }
